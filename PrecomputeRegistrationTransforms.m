@@ -13,7 +13,7 @@ name_of_embryo = '/Users/lbrown/Documents/PosfaiLab/Registration/HaydensReg2022/
 % Suffix: yours is probably '.lux.tif'
 suffix_for_embryo = '.lux.tif';
 
-RegistrationFileName = 'transformsSecondHalf.mat';
+RegistrationFileName = 'transformsFirstFive.mat';
 
 G_based_on_nn = graph;
 % Voxel size before making isotropic
@@ -25,16 +25,18 @@ xyz_res = 0.8320;
 voxel_vol = xyz_res^3;
 
 
+% Which image indices to run over...
+which_number_vect = 1:100;
+valid_time_indices = which_number_vect;
+
 % Initialize empty graph and cell array for storing registration
 store_registration = cell((length(valid_time_indices)-1), 1);
 sigma2_vect_saved = zeros((length(valid_time_indices)-1), 1);
 sigma2tests = zeros(100,1);  % these are the 100 tests for one pair of images
 transforms = cell(100,1);
 
-% Which image indices to run over...
-which_number_vect = 1:100;
-valid_time_indices = which_number_vect;
-for time_index_index = 49:99  % time 78 takes a LONG time
+%% Note: last time point will look at this time point and the next one
+for time_index_index = 1:5  % time 78 takes a LONG time
      
     % store this time index
     time_index = valid_time_indices(time_index_index)
