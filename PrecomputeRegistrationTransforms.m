@@ -13,7 +13,7 @@ name_of_embryo = '/Users/lbrown/Documents/PosfaiLab/Registration/HaydensReg2022/
 % Suffix: yours is probably '.lux.tif'
 suffix_for_embryo = '.lux.tif';
 
-RegistrationFileName = 'transformsFirstFive.mat';
+RegistrationFileName = 'transformsFirst3.mat';
 
 G_based_on_nn = graph;
 % Voxel size before making isotropic
@@ -36,7 +36,7 @@ sigma2tests = zeros(100,1);  % these are the 100 tests for one pair of images
 transforms = cell(100,1);
 
 %% Note: last time point will look at this time point and the next one
-for time_index_index = 1:5  % time 78 takes a LONG time
+for time_index_index = 1:3  % time 78 takes a LONG time
      
     % store this time index
     time_index = valid_time_indices(time_index_index)
@@ -85,6 +85,7 @@ for time_index_index = 1:5  % time 78 takes a LONG time
     number_of_points = length(find1);
     
     % why random points - why not just subsample by 10 ?
+    rng(1);
     p = randperm(number_of_points,round(number_of_points * fraction_of_selected_points));
     %full_ptCloud1 =  [X(find1), Y(find1), Z(find1)] - [mean(X(find1)), mean(Y(find1)), mean(Z(find1))];
     find1 = find1(p);
