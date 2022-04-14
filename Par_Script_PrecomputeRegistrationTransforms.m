@@ -107,11 +107,12 @@ for time_index_index = firstTime:lastTime  % time 78 takes a LONG time
     number_of_points = length(find1);
 
     % why random points - why not just subsample by 10 ?
+    rng(1)
     p = randperm(number_of_points,round(number_of_points * fraction_of_selected_points));
     %full_ptCloud1 =  [X(find1), Y(find1), Z(find1)] - [mean(X(find1)), mean(Y(find1)), mean(Z(find1))];
     find1 = find1(p);
 
-    ptCloud1 = [X(find1), Y(find1), Z(find1)] - [mean(X(Dfind1)), mean(Y(find1)), mean(Z(find1))];
+    ptCloud1 = [X(find1), Y(find1), Z(find1)] - [mean(X(find1)), mean(Y(find1)), mean(Z(find1))];
     %
     find2 = find(combined_image2(:)~=0);
     number_of_points = length(find2);
