@@ -24,6 +24,9 @@ xyz_res = 0.8320;
 % Volume of isotropic voxel
 voxel_vol = xyz_res^3;
 
+% how many random orientations do you want - minimum.
+maxItr = 100;
+
 % Which image indices to run over...
 which_number_vect = 1:100; %what is the valid time range.
 
@@ -185,10 +188,12 @@ for time_index_index = firstTime:lastTime  % time 78 takes a LONG time
         which_rot = 1;
         min_sigma2 = 100;
         counter = 0;
-        while ((min_sigma2 > 10) && (which_rot < 10))
+    
+        while ((min_sigma2 > 10) && (counter < maxItr))
             fprintf('.')
             thetaHoldler = {};
-            parfor whichrot = 1:11
+            parfor whichrot = 1:gcp().NumWorkers
+                rng(which_rot*whichrot)%reseeding RNG call to ensure each rand is different below... 
                 theta1 =rand*360;
                 rot1 = [ cosd(theta1) -sind(theta1) 0; ...
                     sind(theta1) cosd(theta1) 0; ...
@@ -213,7 +218,7 @@ for time_index_index = firstTime:lastTime  % time 78 takes a LONG time
                 %store_registration{counter+time_index_index, 1} = Transform;
                 transforms{counter+whichrot, 1} = Transform;
                 sigma2tests(counter+whichrot) = sigma2;
-                which_rot = which_rot + 1;
+                %which_rot = which_rot + 1;
 
                 %figure; hold all; title('Before'); cpd_plot_iter(ptCloud1, ptCloud2);
                 % figure; hold all;
