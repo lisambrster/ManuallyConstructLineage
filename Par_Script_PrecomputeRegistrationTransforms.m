@@ -8,6 +8,8 @@
 addpath(genpath('oldfiles'));
 addpath(genpath('CPD2'));
 
+verbosemode = 1; 
+
 % What is the prefix for the embryo names?
 name_of_embryo = '/home/jotsund/Desktop/tracking_test/220316_out/A/st9/klbOut_Cam_Long_';
 % Suffix: yours is probably '.lux.tif'
@@ -40,8 +42,7 @@ valid_time_indices = which_number_vect;
 % Initialize empty graph and cell array for storing registration
 store_registration = cell((length(valid_time_indices)-1), 1);
 sigma2_vect_saved = zeros((length(valid_time_indices)-1), 1);
-sigma2tests = zeros(100,1);  % these are the 100 tests for one pair of images
-transforms = cell(100,1);
+
 
 
 % Set the options for CPD - these are always the same.
@@ -61,6 +62,8 @@ opt.ftg = 1; % make faster
 %% Note: last time point will look at this time point and the next one
 
 for time_index_index = firstTime:lastTime  % time 78 takes a LONG time
+    sigma2tests = zeros(maxItr,1)*nan;  % these are the 100 tests for one pair of images
+    transforms = cell(maxItr,1);
     tic
     % store this time index
     time_index = valid_time_indices(time_index_index);
@@ -192,8 +195,8 @@ for time_index_index = firstTime:lastTime  % time 78 takes a LONG time
         while ((min_sigma2 > 10) && (counter < maxItr))
             fprintf('.')
             thetaHoldler = {};
-            parfor whichrot = 1:gcp().NumWorkers
-                rng(which_rot*whichrot)%reseeding RNG call to ensure each rand is different below... 
+            for whichrot = 1:gcp().NumWorkers
+                rng((1+counter)*whichrot)%reseeding RNG call to ensure each rand is different below... 
                 theta1 =rand*360;
                 rot1 = [ cosd(theta1) -sind(theta1) 0; ...
                     sind(theta1) cosd(theta1) 0; ...
@@ -213,7 +216,7 @@ for time_index_index = firstTime:lastTime  % time 78 takes a LONG time
                 %thetaHoldler{whichrot} = thetaz;
 
                 % registering Y to X
-                [Transform, sigma2]=cpd_register(ptCloud1,ptCloud2Loc,opt);
+                [Transform,~, sigma2]=cpd_register(ptCloud1,ptCloud2Loc,opt);
                 %sigma2_vect(which_rot) = sigma2;
                 %store_registration{counter+time_index_index, 1} = Transform;
                 transforms{counter+whichrot, 1} = Transform;
@@ -233,13 +236,16 @@ for time_index_index = firstTime:lastTime  % time 78 takes a LONG time
 %                 theta_vect(counter+aye, 3) = thetaHoldler(aye,3);
 %             end
             %end
-            counter = which_rot;
+            counter = counter + gcp().NumWorkers;%which_rot;
             if which_rot > 99
                 disp('did not find transformation with sigma2 < 10');
             end
             % get the best one we found this loop, 
-            [min_sigma2, min_ind] = min(sigma2tests);
+            [min_sigma2, min_ind] = nanmin(sigma2tests);
             Transform = transforms{min_ind,1};
+            if verbosemode
+                disp(min_sigma2); disp(min_ind);
+            end
             store_registration{time_index_index, 1} = Transform;
 
         end
