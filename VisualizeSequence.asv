@@ -1,0 +1,221 @@
+
+
+% for sequence of label images
+% using sequence of registration transforms
+% put all label images in same reference frame
+
+% down sample x/y by 4
+% up sample z by 2/0.832
+
+% remove centroid
+
+function [] = VisualizeSequence(  )
+
+%close all;
+addpath(genpath('/Users/lbrown/Documents/PosfaiLab/Registration/HaydensReg2022/CPD2/core'));
+addpath(genpath('/Users/lbrown/Documents/PosfaiLab/Registration/HaydensReg2022/CPD2/data'));
+
+firstTime = 1;
+lastTime = 50;  %% lastTime must be greater than firstTime
+
+name_of_embryo = '/Users/lbrown/Documents/PosfaiLab/3DStardist/GataNanog/HaydenJan22Set/Stardist3D_klbOut_Cam_Long_';
+% Stardist3D_klbOut_Cam_Long_00084.tif
+suffix_for_embryo = '.tif'
+
+% read in mat file
+data_path = '/Users/lbrown/Documents/PosfaiLab/3DStardist/GataNanog/HaydenJan22Set/';
+%RegistrationFileName ='transforms1_100More.mat';
+RegistrationFileName ='transforms50_100Match.mat';
+transforms50_100 = load(strcat(data_path,RegistrationFileName));
+
+RegistrationFileName ='transforms1_50Match.mat';
+transforms1_50 = load(strcat(data_path,RegistrationFileName));
+hold on;
+for i=1:50
+    s(i) = transforms1_50.store_registration{i,1}.minSigma
+end
+plot(1:50,s,'LineWidth',4,'Color','b');
+for i=50:100
+    s(i) = transforms50_100.store_registration{i,1}.minSigma
+end
+plot(50:100,s(50:100),'LineWidth',4,'Color','b');
+
+transforms = transforms1_50;
+
+G_based_on_nn = graph;
+
+% Voxel size before making isotropic
+pixel_size_xy_um = 0.208; % um
+pixel_size_z_um = 2.0; % um
+% Voxel size after making isotropic
+xyz_res = 0.8320;
+% Volume of isotropic voxel
+voxel_vol = xyz_res^3;
+
+
+% Initialize empty graph and cell array for storing registration
+% Which image indices to run over...
+which_number_vect = 1:200;
+valid_time_indices = which_number_vect;
+
+
+% also, check the alignment of this one with the time frame after
+%for time_index_index = 1:(length(valid_time_indices)-1)
+figure;
+xlim([-60,60]);
+ylim([-60,60]);
+zlim([-60,60]);
+for time_index_index = firstTime:lastTime
+     
+    % store this time index
+    time_index = valid_time_indices(time_index_index)
+    
+    % store next in series
+    time_index_plus_1 = valid_time_indices(time_index_index+1);
+    
+    % store combined image for both.
+    A = imread([name_of_embryo,num2str(time_index,'%05.5d'),suffix_for_embryo],1);
+    tiff_info = imfinfo([name_of_embryo,num2str(time_index,'%05.5d'),suffix_for_embryo]);
+    % combine all tiff stacks into 1 3D image.
+    combined_image = zeros(size(A,1), size(A,2), size(tiff_info, 1));
+    for j = 1:size(tiff_info, 1) % each slice
+        A = imread([name_of_embryo,num2str(time_index,'%05.5d'),suffix_for_embryo],j);
+        combined_image(:,:,j) = A(:,:,1);
+    end
+    combined_image1 = combined_image;
+  
+    resXY = 0.208;
+    resZ = 2.0;
+    reduceRatio = 1/4;
+    combined_image1 = isotropicSample_nearest(double(combined_image1), resXY, resZ, reduceRatio);
+    
+    A = imread([name_of_embryo,num2str(time_index_plus_1,'%05.5d'),suffix_for_embryo],1);
+    tiff_info = imfinfo([name_of_embryo,num2str(time_index_plus_1,'%05.5d'),suffix_for_embryo]);
+    % combine all tiff stacks into 1 3D image.
+    combined_image = zeros(size(A,1), size(A,2), size(tiff_info, 1));
+    for j = 1:size(tiff_info, 1)
+        A = imread([name_of_embryo,num2str(time_index_plus_1,'%05.5d'),suffix_for_embryo],j);
+        combined_image(:,:,j) = A(:,:,1);
+    end
+    combined_image2 = combined_image;
+    
+    resXY = 0.208;
+    resZ = 2.0;
+    reduceRatio = 1/4;
+    combined_image2 = isotropicSample_nearest(double(combined_image2), resXY, resZ, reduceRatio);
+    
+    % STORE MESHGRID
+    [X, Y, Z] = meshgrid(1:size(combined_image1, 2), 1:size(combined_image1, 1), 1:size(combined_image1, 3));
+    
+    % FRACTION OF POINTS (DOWNSAMPLING)
+    fraction_of_selected_points =  1/10;  % slow to run at full scale - but make full res points and xform?
+    find1 = find(combined_image1(:)~=0);  % this is the indices into combined_image1 to get indices into (X,Y,Z) to the full set of point
+    number_of_points = length(find1);
+    
+    % compute mean BEFORE random subsampling of points - so constant per
+    % iteration
+    meanX1 = transforms.store_registration{time_index,1}.Centroids1(1); %mean(X(find1));
+    meanY1 = transforms.store_registration{time_index,1}.Centroids1(2); %mean(Y(find1));
+    meanZ1 = transforms.store_registration{time_index,1}.Centroids1(3); %mean(Z(find1));
+    
+    % why random points - why not just subsample by 10 ?
+    rng(1);
+    p = randperm(number_of_points,round(number_of_points * fraction_of_selected_points));
+    %full_ptCloud1 =  [X(find1), Y(find1), Z(find1)] - [mean(X(find1)), mean(Y(find1)), mean(Z(find1))];
+    find1 = find1(p);
+    
+    ptCloud1 = [X(find1), Y(find1), Z(find1)] - [meanX1, meanY1, meanZ1];
+    %ptCloud1 = [X(find1), Y(find1), Z(find1)] - [mean(X(find1)), mean(Y(find1)), mean(Z(find1))];
+    find2 = find(combined_image2(:)~=0);
+    number_of_points = length(find2);
+    
+    meanX2 = transforms.store_registration{time_index,1}.Centroids2(1); %mean(X(find2));
+    meanY2 = transforms.store_registration{time_index,1}.Centroids2(2); %mean(Y(find2));
+    meanZ2 = transforms.store_registration{time_index,1}.Centroids2(3); %mean(Z(find2));
+    
+    p = randperm(number_of_points,round(number_of_points * fraction_of_selected_points));
+    find2 = find2(p);
+    
+    ptCloud2 = [X(find2), Y(find2), Z(find2)] - [meanX2, meanY2, meanZ2];
+    %ptCloud2 = [X(find2), Y(find2), Z(find2)] - [mean(X(find2)), mean(Y(find2)), mean(Z(find2))];
+    ptCloud2 = pointCloud(ptCloud2);
+    
+    Y = ptCloud2.Location;
+    X = ptCloud1;
+    [M, D] = size(X);
+    
+    % perform the transformation iteratively (x1 -> x2 -> ... -> xn)
+    if time_index_index == lastTime
+        newX = X;
+    else
+        newX = X;
+        for iFrame = time_index_index: lastTime -1 % last frame stays the same
+            ThisTransform = transforms.store_registration{iFrame,1};
+            this_rotation = ThisTransform.Rotation;
+            this_translation = ThisTransform.Translation(1,:);
+            newX = X*this_rotation + this_translation;
+        end
+    end
+    % for no registration
+    newX = X;
+    
+   
+    
+    none = [];
+    figure;
+    hold all;
+    title_str = strcat ( string(time_index_index), '.jpg');
+    title(title_str); 
+    xlim([-60,60]);
+    ylim([-60,60]);
+    zlim([-60,60]);
+    view(45,45);
+
+    if (time_index_index == lastTime)
+        cpd_plot_iter(X,X);
+    else
+        cpd_plot_iter(newX,ptCloud2.Location);
+    end
+    % this is to just plot one at a time per image for making the video
+%     if (mod(time_index_index,2) == 0) & (time_index_index <1000)
+%         plot3(newX(:,1),newX(:,2),newX(:,3),'b.');
+%     elseif (time_index_index < 10000)
+%         plot3(newX(:,1),newX(:,2),newX(:,3),'b.');
+%     end
+    hold off
+    F(time_index_index) = getframe(gcf) ;
+    close()
+        
+    %drawnow;
+    %t = gcf;
+    %exportgraphics(t,title_str)
+    %cpd_plot_iter(newX, newX);
+    
+end
+
+
+bMakeVideo = true;
+
+if bMakeVideo
+    % create the video writer with 1 fps
+    writerObj = VideoWriter('Match1to50NoRegistrationPairs.avi');
+    writerObj.FrameRate = 2;
+    % set the seconds per image
+    % open the video writer
+    open(writerObj);
+    % write the frames to the video
+    for i=firstTime:length(F)
+        % convert the image to a frame
+        frame = F(i) ;    
+        writeVideo(writerObj, frame);
+    end
+    % close the writer object
+    close(writerObj);
+end
+    
+
+
+    
+
+    
+
